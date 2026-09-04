@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analisis Sentimen Sensus Ekonomi Tangsel</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        /* Kustom scrollbar untuk tabel data */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Toast Notifikasi -->
+    <div id="toast" class="fixed top-5 right-5 z-50 transform transition-all duration-300 translate-y-[-150%] opacity-0 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium bg-slate-800 text-white">
+        <span id="toastMsg">Notifikasi</span>
+    </div>
+
+    <!-- Header / Navigasi -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold shadow-md shadow-blue-200">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">Sentimen Sensus Ekonomi Tangsel</h1>
+                    <p class="text-xs text-slate-500">Monitoring Opini Publik Kota Tangerang Selatan</p>
+                </div>
+            </div>
+
+            <!-- Panel Pengaturan API & Sinkronisasi -->
+            <div class="flex items-center gap-2">
+                <span id="connectionBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 transition-colors">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    Mock API Aktif
+                </span>
+                <button id="btnRefresh" onclick="loadDataFromApify()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-semibold rounded-lg shadow transition-all">
+                    <svg id="refreshIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    Sinkronkan
+                </button>
+                <button onclick="toggleConfigModal()" class="p-1.5 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100" title="Konfigurasi API">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Konten Utama -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-grow space-y-6">
+
+        <!-- Banner Info Sumber Data -->
+        <div class="bg-gradient-to-r from-blue-900 to-indigo-800 rounded-2xl p-5 sm:p-6 text-white shadow-md relative overflow-hidden">
+            <div class="relative z-10 max-w-3xl space-y-2">
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/30 text-blue-200 border border-blue-400/20">
+                    Sumber Data: Mock / Fake API
+                </span>
+                <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight">Sentimen Publik Sensus Ekonomi Tangsel</h2>
+                <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">
+                    Data dipindai dari dataset hasil crawler (Simulasi Fake API). Menangkap aspirasi pelaku UMKM, masyarakat umum, dan isu terkait pelaksanaan sensus di 7 kecamatan Tangsel.
+                </p>
+            </div>
+            <!-- Hiasan latar belakang -->
+            <div class="absolute right-0 bottom-0 translate-x-10 translate-y-10 opacity-10 pointer-events-none">
+                <svg class="w-64 h-64 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Ringkasan Kartu Statistik (KPIs) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Total Respon/Data -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Komentar</p>
+                    <h3 id="statTotal" class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">0</h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Unggahan terkumpul</p>
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Sentimen Positif -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-emerald-600">Sentimen Positif</p>
+                    <h3 id="statPositif" class="text-2xl sm:text-3xl font-extrabold text-emerald-600 mt-1">0%</h3>
+                    <p id="countPositif" class="text-xs text-slate-400 mt-0.5">0 data</p>
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Sentimen Netral -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-amber-600">Sentimen Netral</p>
+                    <h3 id="statNetral" class="text-2xl sm:text-3xl font-extrabold text-amber-600 mt-1">0%</h3>
+                    <p id="countNetral" class="text-xs text-slate-400 mt-0.5">0 data</p>
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h8m-8 4h8m-8-8h8"/>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Sentimen Negatif -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-rose-600">Sentimen Negatif</p>
+                    <h3 id="statNegatif" class="text-2xl sm:text-3xl font-extrabold text-rose-600 mt-1">0%</h3>
+                    <p id="countNegatif" class="text-xs text-slate-400 mt-0.5">0 data</p>
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76 1.04m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bagian Grafik Visualisasi -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Diagram Lingkaran Proporsi Sentimen -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div>
+                    <h4 class="font-bold text-slate-800 text-sm sm:text-base">Distribusi Sentimen</h4>
+                    <p class="text-xs text-slate-500 mb-4">Perbandingan persentase reaksi masyarakat</p>
+                </div>
+                <div class="relative w-full aspect-square max-h-[260px] mx-auto">
+                    <canvas id="sentimentChart"></canvas>
+                </div>
+                <div class="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-100 text-center text-xs">
+                    <div>
+                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 mr-1"></span>
+                        <span class="text-slate-600">Positif</span>
+                    </div>
+                    <div>
+                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500 mr-1"></span>
+                        <span class="text-slate-600">Netral</span>
+                    </div>
+                    <div>
+                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-rose-500 mr-1"></span>
+                        <span class="text-slate-600">Negatif</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Diagram Batang Aspek/Topik Populer -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm lg:col-span-2 flex flex-col justify-between">
+                <div>
+                    <h4 class="font-bold text-slate-800 text-sm sm:text-base">Topik Utama Pembahasan di Tangsel</h4>
+                    <p class="text-xs text-slate-500 mb-4">Frekuensi topik yang paling banyak dibicarakan warga dan pelaku usaha</p>
+                </div>
+                <div class="relative w-full h-[260px]">
+                    <canvas id="topicChart"></canvas>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                    <span>*Topik diekstraksi dari data</span>
+                    <span class="font-medium text-blue-600">Kecamatan Tangsel Terkait: Serpong, Ciputat, Pamulang, dll.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter dan Tabel Data Komentar -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <!-- Filter Bar -->
+            <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row gap-3 items-center justify-between">
+                <div class="w-full sm:w-80 relative">
+                    <input type="text" id="searchInput" oninput="filterData()" placeholder="Cari isi komentar, kecamatan, nama..." 
+                           class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
+                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </div>
+
+                <div class="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
+                    <!-- Tombol Filter Sentimen -->
+                    <div class="inline-flex rounded-lg border border-slate-200 p-1 bg-slate-50 text-xs font-semibold" id="sentimentFilters">
+                        <button onclick="setSentimentFilter('ALL')" data-filter="ALL" class="filter-btn px-2.5 py-1 rounded-md bg-white text-blue-600 shadow-sm transition">Semua</button>
+                        <button onclick="setSentimentFilter('POSITIF')" data-filter="POSITIF" class="filter-btn px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition">Positif</button>
+                        <button onclick="setSentimentFilter('NETRAL')" data-filter="NETRAL" class="filter-btn px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition">Netral</button>
+                        <button onclick="setSentimentFilter('NEGATIF')" data-filter="NEGATIF" class="filter-btn px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition">Negatif</button>
+                    </div>
+
+                    <button onclick="exportToCSV()" class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 inline-flex items-center gap-1.5 transition">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>
+                        Ekspor CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Daftar Komentar / Feed -->
+            <div class="overflow-x-auto custom-scrollbar max-h-[480px]">
+                <table class="w-full text-left text-xs sm:text-sm text-slate-700">
+                    <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 uppercase tracking-wider text-[11px] sticky top-0 z-10">
+                        <tr>
+                            <th class="py-3 px-4 w-12 text-center">No</th>
+                            <th class="py-3 px-4 w-40">Pengguna / Wilayah</th>
+                            <th class="py-3 px-4">Isi Aspirasi / Komentar</th>
+                            <th class="py-3 px-4 w-28 text-center">Sentimen</th>
+                            <th class="py-3 px-4 w-28 text-center">Skor Keyakinan</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-slate-100 font-normal">
+                        <!-- Data akan dirender ke sini oleh JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+                <span id="showingCount">Menampilkan 0 data</span>
+                <span>Diperbarui secara lokal (Mock API)</span>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Konfigurasi (Fungsi UI Tetap Ada, Tapi Tanpa API Asli) -->
+    <div id="configModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 transition-opacity">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b pb-3">
+                <h3 class="font-bold text-slate-900 text-base">Konfigurasi Sumber Data</h3>
+                <button onclick="toggleConfigModal()" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Apify API Token (Disable in Mock Mode)</label>
+                    <input type="text" disabled class="w-full px-3 py-2 border rounded-lg font-mono text-slate-400 bg-slate-100" value="[MOCK_MODE_ACTIVE]">
+                </div>
+                <p class="text-amber-600 text-[11px] leading-relaxed font-medium bg-amber-50 p-2 rounded border border-amber-200">
+                    Mode saat ini menggunakan API Dummy (Mock Data) untuk keperluan demonstrasi UI. Pengaturan Apify dinonaktifkan sementara.
+                </p>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="toggleConfigModal()" class="px-3 py-1.5 rounded-lg border text-slate-600 hover:bg-slate-100 text-xs font-semibold">Tutup</button>
+                <button onclick="toggleConfigModal(); showToast('Pengaturan disimpan lokal');" class="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold">Simpan & Muat Ulang</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-8">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-400 space-y-1">
+            <p>Dashboard Analisis Sentimen Sensus Ekonomi - Wilayah Kerja BPS Tangsel</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript Logic (Mock API, Filter, Chart) -->
+    <script>
+        // Global State
+        let allData = [];
+        let currentFilter = 'ALL';
+        let sentimentPieChart, topicBarChart;
+
+        // --- 1. MOCK API DATA GENERATOR ---
+        const fetchFakeData = () => {
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve([
+                        { id: 1, user: "Budi Santoso", region: "Pamulang", text: "Petugas sensus ramah, pendataan umkm jadi lebih jelas kedepannya.", sentiment: "POSITIF", score: 0.92, topic: "Pelayanan" },
+                        { id: 2, user: "Siti Aminah", region: "Ciputat", text: "Terlalu banyak form yang diisi, waktunya kurang efisien buat yang lagi jualan.", sentiment: "NEGATIF", score: 0.85, topic: "Administrasi" },
+                        { id: 3, user: "Andi Wijaya", region: "Serpong", text: "Sudah didata kemarin sore. Biasa aja prosesnya tidak ada yang spesial.", sentiment: "NETRAL", score: 0.70, topic: "Umum" },
+                        { id: 4, user: "Toko Sembako Jaya", region: "Pondok Aren", text: "Harapannya hasil sensus ini beneran dipake buat ngasih bantuan UMKM, bukan cuma dicatat doang.", sentiment: "NETRAL", score: 0.65, topic: "Harapan" },
+                        { id: 5, user: "Dimas Kopi", region: "Serpong Utara", text: "Aplikasi pendataannya error pas petugas dateng, jadi harus diulang manual.", sentiment: "NEGATIF", score: 0.88, topic: "Teknis/Aplikasi" },
+                        { id: 6, user: "Ibu Resto", region: "Setu", text: "Sangat mendukung program pemerintah ini, semoga ekonomi Tangsel makin maju!", sentiment: "POSITIF", score: 0.96, topic: "Dukungan" },
+                        { id: 7, user: "Fajar Motor", region: "Ciputat Timur", text: "Pendataan cepat dan jelas, tidak mengganggu operasional bengkel saya.", sentiment: "POSITIF", score: 0.89, topic: "Pelayanan" },
+                        { id: 8, user: "Koperasi Warga", region: "Pamulang", text: "Pertanyaannya terlalu privasi, soal omzet dan pajak. Bikin resah pedagang kecil.", sentiment: "NEGATIF", score: 0.91, topic: "Privasi Data" }
+                    ]);
+                }, 800); // Simulasi delay jaringan 800ms
+            });
+        };
+
+        // --- 2. CORE LOGIC ---
+        async function loadDataFromApify() {
+            const btn = document.getElementById('btnRefresh');
+            const icon = document.getElementById('refreshIcon');
+            
+            // UI Loading state
+            icon.classList.add('animate-spin');
+            btn.classList.add('opacity-75', 'cursor-not-allowed');
+            showToast("Mengambil data terbaru...");
+
+            try {
+                // Fetch dari Fake API
+                allData = await fetchFakeData();
+                renderAll();
+                showToast("Data berhasil disinkronisasi!");
+            } catch (error) {
+                showToast("Gagal mengambil data!", true);
+            } finally {
+                icon.classList.remove('animate-spin');
+                btn.classList.remove('opacity-75', 'cursor-not-allowed');
+            }
+        }
+
+        function renderAll() {
+            updateStats();
+            renderTable();
+            initCharts();
+        }
+
+        function updateStats() {
+            const total = allData.length;
+            const pos = allData.filter(d => d.sentiment === 'POSITIF').length;
+            const neu = allData.filter(d => d.sentiment === 'NETRAL').length;
+            const neg = allData.filter(d => d.sentiment === 'NEGATIF').length;
+
+            document.getElementById('statTotal').innerText = total;
+            
+            document.getElementById('statPositif').innerText = total ? Math.round((pos/total)*100) + '%' : '0%';
+            document.getElementById('countPositif').innerText = pos + ' data';
+            
+            document.getElementById('statNetral').innerText = total ? Math.round((neu/total)*100) + '%' : '0%';
+            document.getElementById('countNetral').innerText = neu + ' data';
+            
+            document.getElementById('statNegatif').innerText = total ? Math.round((neg/total)*100) + '%' : '0%';
+            document.getElementById('countNegatif').innerText = neg + ' data';
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            const searchQ = document.getElementById('searchInput').value.toLowerCase();
+            
+            // Filter Data
+            const filteredData = allData.filter(item => {
+                const matchSearch = item.user.toLowerCase().includes(searchQ) || 
+                                    item.region.toLowerCase().includes(searchQ) || 
+                                    item.text.toLowerCase().includes(searchQ);
+                const matchSentiment = currentFilter === 'ALL' || item.sentiment === currentFilter;
+                return matchSearch && matchSentiment;
+            });
+
+            tbody.innerHTML = '';
+            
+            if(filteredData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-500 italic">Data tidak ditemukan.</td></tr>`;
+            } else {
+                filteredData.forEach((item, index) => {
+                    let badgeClass = '';
+                    if(item.sentiment === 'POSITIF') badgeClass = 'bg-emerald-100 text-emerald-700 border-emerald-200';
+                    else if(item.sentiment === 'NETRAL') badgeClass = 'bg-amber-100 text-amber-700 border-amber-200';
+                    else badgeClass = 'bg-rose-100 text-rose-700 border-rose-200';
+
+                    const row = `
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="py-3 px-4 text-center text-slate-400">${index + 1}</td>
+                            <td class="py-3 px-4">
+                                <div class="font-medium text-slate-800">${item.user}</div>
+                                <div class="text-slate-500 text-[11px]">${item.region}</div>
+                            </td>
+                            <td class="py-3 px-4 leading-relaxed">${item.text}</td>
+                            <td class="py-3 px-4 text-center">
+                                <span class="inline-block px-2.5 py-1 text-[10px] font-bold rounded-md border ${badgeClass}">
+                                    ${item.sentiment}
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 text-center font-mono text-slate-600">
+                                ${(item.score * 100).toFixed(0)}%
+                            </td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+            }
+
+            document.getElementById('showingCount').innerText = `Menampilkan ${filteredData.length} data`;
+        }
+
+        function filterData() {
+            renderTable();
+        }
+
+        function setSentimentFilter(type) {
+            currentFilter = type;
+            // Update UI Button states
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if(btn.dataset.filter === type) {
+                    btn.classList.replace('text-slate-600', 'text-blue-600');
+                    btn.classList.replace('hover:text-slate-900', 'bg-white');
+                    btn.classList.add('shadow-sm');
+                } else {
+                    btn.classList.replace('text-blue-600', 'text-slate-600');
+                    btn.classList.replace('bg-white', 'hover:text-slate-900');
+                    btn.classList.remove('shadow-sm');
+                }
+            });
+            renderTable();
+        }
+
+        // --- 3. CHART.JS INITIALIZATION ---
+        function initCharts() {
+            const pos = allData.filter(d => d.sentiment === 'POSITIF').length;
+            const neu = allData.filter(d => d.sentiment === 'NETRAL').length;
+            const neg = allData.filter(d => d.sentiment === 'NEGATIF').length;
+
+            // Chart Pie Sentimen
+            const ctxPie = document.getElementById('sentimentChart').getContext('2d');
+            if (sentimentPieChart) sentimentPieChart.destroy();
+            sentimentPieChart = new Chart(ctxPie, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Positif', 'Netral', 'Negatif'],
+                    datasets: [{
+                        data: [pos, neu, neg],
+                        backgroundColor: ['#10b981', '#f59e0b', '#f43f5e'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+
+            // Hitung frekuensi topik untuk Bar Chart
+            const topicsCount = {};
+            allData.forEach(d => {
+                topicsCount[d.topic] = (topicsCount[d.topic] || 0) + 1;
+            });
+            
+            const sortedTopics = Object.keys(topicsCount).sort((a,b) => topicsCount[b] - topicsCount[a]);
+            const topicLabels = sortedTopics;
+            const topicData = sortedTopics.map(t => topicsCount[t]);
+
+            // Chart Bar Topik
+            const ctxBar = document.getElementById('topicChart').getContext('2d');
+            if (topicBarChart) topicBarChart.destroy();
+            topicBarChart = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: topicLabels,
+                    datasets: [{
+                        label: 'Jumlah Penyebutan',
+                        data: topicData,
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 6,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                        x: { grid: { display: false } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // --- 4. UTILITIES ---
+        function toggleConfigModal() {
+            const modal = document.getElementById('configModal');
+            modal.classList.toggle('hidden');
+        }
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = message;
+            
+            if(isError) toast.classList.replace('bg-slate-800', 'bg-rose-600');
+            else toast.classList.replace('bg-rose-600', 'bg-slate-800');
+
+            toast.classList.remove('translate-y-[-150%]', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-[-150%]', 'opacity-0');
+            }, 3000);
+        }
+
+        function exportToCSV() {
+            if(allData.length === 0) {
+                showToast("Tidak ada data untuk diekspor", true);
+                return;
+            }
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "ID,Pengguna,Wilayah,Komentar,Sentimen,Skor\n";
+            allData.forEach(row => {
+                const cleanText = row.text.replace(/,/g, ''); // bersihkan koma agar format csv tidak rusak
+                csvContent += `${row.id},${row.user},${row.region},${cleanText},${row.sentiment},${row.score}\n`;
+            });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "data_sentimen_sensus_tangsel.csv");
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            showToast("CSV Berhasil Diunduh!");
+        }
+
+        // Initial Load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDataFromApify();
+        });
+
+    </script>
+</body>
+</html>
